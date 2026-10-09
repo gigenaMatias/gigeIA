@@ -1,0 +1,19 @@
+# Procesamiento asíncrono y red
+httpx>=0.27,<1
+python-dotenv>=1.0,<2
+
+# Reconocimiento y síntesis de voz (STT/TTS)
+SpeechRecognition>=3.10,<4
+pyttsx3>=2.90,<3
+PyAudio>=0.2.14,<1
+vosk>=0.3.45,<1
+
+# Base de datos MySQL
+PyMySQL>=1.1,<2
+
+# Integración LLM opcional (Groq)
+groq>=0.11,<1
+
+# Dashboard web
+fastapi>=0.115,<1
+uvicorn>=0.30,<1

@@ -1,0 +1,46 @@
+# Secrets and local environment files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Python virtual environments
+venv/
+.venv/
+env/
+.env_venv/
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# IDE and editor state
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Build and packaging output
+build/
+dist/
+*.egg-info/
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+desktop.ini

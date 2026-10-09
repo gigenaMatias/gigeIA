@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080e18">
+  <title>JARVIS // Monitor del sistema</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080e18;
+      --panel: #0d1725;
+      --panel-raised: #101e2e;
+      --line: #1c3850;
+      --cyan: #47d9ff;
+      --muted: #7890a5;
+      --text: #d7e9f5;
+      --green: #55e6a5;
+      --red: #ff657c;
+      --yellow: #ffd166;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse at 50% -15%, #13304a 0, transparent 52%),
+        linear-gradient(145deg, #080e18, #0a111d 58%, #08101a);
+      color: var(--text);
+      font: 14px/1.5 "Cascadia Code", "Consolas", "Courier New", monospace;
+    }
+    .shell { width: min(1100px, calc(100% - 36px)); margin: 0 auto; padding: 34px 0 28px; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 28px; }
+    .eyebrow, .muted { color: var(--muted); }
+    .eyebrow { margin: 0 0 5px; font-size: 11px; letter-spacing: .2em; text-transform: uppercase; }
+    h1 { margin: 0; color: #effaff; font-size: clamp(22px, 4vw, 32px); letter-spacing: .08em; font-weight: 600; }
+    .online-chip { display: inline-flex; align-items: center; gap: 9px; border: 1px solid var(--line); border-radius: 99px; padding: 7px 12px; color: var(--muted); font-size: 11px; white-space: nowrap; }
+    .led { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); box-shadow: 0 0 9px currentColor; }
+    .led.online { background: var(--green); color: var(--green); }
+    .led.offline { background: var(--red); color: var(--red); }
+    .led.busy { background: var(--yellow); color: var(--yellow); animation: pulse 1s infinite alternate; }
+    @keyframes pulse { to { opacity: .45; } }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .card, .panel { position: relative; overflow: hidden; border: 1px solid var(--line); background: linear-gradient(150deg, #101c2aee, #0a1420ee); }
+    .card { min-height: 166px; padding: 19px; }
+    .card::before { position: absolute; inset: 0 auto 0 0; width: 2px; background: var(--cyan); content: ""; opacity: .7; }
+    .card-top { display: flex; align-items: center; justify-content: space-between; }
+    .card h2 { margin: 0; color: var(--muted); font-size: 12px; font-weight: 500; letter-spacing: .09em; text-transform: uppercase; }
+    .status-text { margin: 19px 0 3px; color: #effaff; font-size: 23px; text-transform: uppercase; }
+    .card small { color: var(--muted); font-size: 11px; }
+    .panel { margin-top: 16px; }
+    .panel-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 13px 16px; border-bottom: 1px solid var(--line); }
+    .panel-heading h2 { margin: 0; color: #bbd6e6; font-size: 12px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; }
+    .controls { display: flex; flex-wrap: wrap; gap: 9px; padding: 15px 16px; }
+    button { border: 1px solid #28516c; background: #102638; color: #c8efff; padding: 9px 13px; font: inherit; font-size: 11px; cursor: pointer; transition: .15s ease; }
+    button:hover:not(:disabled) { border-color: var(--cyan); background: #15364c; color: white; }
+    button.stop { border-color: #603544; background: #2a1821; color: #ff9aaa; }
+    button.busy { border-color: #806b35; background: #302918; color: var(--yellow); }
+    button:disabled { cursor: wait; opacity: .55; }
+    .latency { color: var(--cyan); font-size: 11px; }
+    .terminal { height: 270px; overflow: auto; padding: 12px 16px; background: #070c13; }
+    .log-entry { display: grid; grid-template-columns: 78px 76px 1fr; gap: 8px; padding: 4px 0; color: #a9c0d1; font-size: 11px; overflow-wrap: anywhere; }
+    .log-time { color: #607c91; }
+    .log-kind { color: var(--cyan); text-transform: uppercase; }
+    .log-kind.error { color: var(--red); }
+    .log-kind.command { color: var(--yellow); }
+    .empty { color: #607c91; font-size: 11px; }
+    footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 16px; color: #627b8d; font-size: 10px; }
+    @media (max-width: 700px) {
+      .grid { grid-template-columns: 1fr; }
+      .card { min-height: 128px; }
+      header { align-items: flex-start; flex-direction: column; }
+      .log-entry { grid-template-columns: 65px 63px 1fr; }
+      footer { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <p class="eyebrow">Sistema de monitoreo // local</p>
+        <h1>JARVIS <span style="color:var(--cyan)">CONTROL</span></h1>
+      </div>
+      <div class="online-chip"><span id="connection-led" class="led busy"></span><span id="connection-label">CONECTANDO API</span></div>
+    </header>
+
+    <section class="grid" aria-label="Estado de servicios">
+      <article class="card">
+        <div class="card-top"><h2>JARVIS Core</h2><span id="core-led" class="led busy"></span></div>
+        <p id="core-status" class="status-text">Verificando</p>
+        <small>Worker de procesamiento y comandos</small>
+      </article>
+      <article class="card">
+        <div class="card-top"><h2>Servidor Apache</h2><span id="apache-led" class="led busy"></span></div>
+        <p id="apache-status" class="status-text">Verificando</p>
+        <small>HTTP :80 / HTTPS :443</small>
+      </article>
+      <article class="card">
+        <div class="card-top"><h2>Servidor MySQL</h2><span id="mysql-led" class="led busy"></span></div>
+        <p id="mysql-status" class="status-text">Verificando</p>
+        <small>Base de datos :3306</small>
+      </article>
+    </section>
+
+    <section class="panel" aria-labelledby="controls-title">
+      <div class="panel-heading">
+        <h2 id="controls-title">Control de servicios</h2>
+        <span class="latency">LATENCIA API <span id="latency">--</span> ms</span>
+      </div>
+      <div class="controls">
+        <button data-service="apache" data-action="start">INICIAR APACHE</button>
+        <button class="stop" data-service="apache" data-action="stop">DETENER APACHE</button>
+        <button data-service="mysql" data-action="start">INICIAR MYSQL</button>
+        <button class="stop" data-service="mysql" data-action="stop">DETENER MYSQL</button>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="events-title">
+      <div class="panel-heading">
+        <h2 id="events-title">Terminal de eventos</h2>
+        <span id="stream-status" class="muted">SSE: conectando</span>
+      </div>
+      <div id="terminal" class="terminal" role="log" aria-live="polite">
+        <p id="empty-message" class="empty">Esperando eventos del sistema...</p>
+      </div>
+    </section>
+    <footer><span>JARVIS // INTERFAZ HUD</span><span>Actualización de estado cada 3 segundos</span></footer>
+  </main>
+
+  <script>
+    const terminal = document.getElementById("terminal");
+    const seenEventIds = new Set();
+    let statusBusy = false;
+
+    function setStatus(name, running) {
+      document.getElementById(`${name}-led`).className = `led ${running ? "online" : "offline"}`;
+      document.getElementById(`${name}-status`).textContent = running ? "Activo" : "Detenido";
+    }
+
+    async function refreshStatus() {
+      if (statusBusy) return;
+      statusBusy = true;
+      try {
+        const response = await fetch("/api/status", { cache: "no-store" });
+        if (!response.ok) throw new Error(`API respondió ${response.status}`);
+        const status = await response.json();
+        setStatus("core", status.jarvis_core.running);
+        setStatus("apache", status.apache.running);
+        setStatus("mysql", status.mysql.running);
+        document.getElementById("latency").textContent = status.latency_ms;
+        document.getElementById("connection-led").className = "led online";
+        document.getElementById("connection-label").textContent = "API CONECTADA";
+      } catch (error) {
+        document.getElementById("connection-led").className = "led offline";
+        document.getElementById("connection-label").textContent = "API SIN CONEXIÓN";
+      } finally {
+        statusBusy = false;
+      }
+    }
+
+    function appendEvent(eventData) {
+      if (eventData.event_id && seenEventIds.has(eventData.event_id)) return;
+      if (eventData.event_id) seenEventIds.add(eventData.event_id);
+      const empty = document.getElementById("empty-message");
+      if (empty) empty.remove();
+      const row = document.createElement("div");
+      row.className = "log-entry";
+      const timestamp = new Date(eventData.timestamp);
+      const time = document.createElement("span");
+      time.className = "log-time";
+      time.textContent = timestamp.toLocaleTimeString();
+      const kind = document.createElement("span");
+      kind.className = `log-kind ${eventData.kind === "error" ? "error" : eventData.kind === "command" ? "command" : ""}`;
+      kind.textContent = eventData.kind;
+      const message = document.createElement("span");
+      message.textContent = eventData.message;
+      row.append(time, kind, message);
+      terminal.appendChild(row);
+      while (terminal.children.length > 150) terminal.firstElementChild.remove();
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    document.querySelectorAll("button[data-service]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const { service, action } = button.dataset;
+        button.disabled = true;
+        const previousText = button.textContent;
+        button.textContent = "PROCESANDO...";
+        button.classList.add("busy");
+        document.getElementById(`${service}-led`).className = "led busy";
+        document.getElementById(`${service}-status`).textContent = "Procesando";
+        try {
+          const response = await fetch(`/api/service/${service}/${action}`, { method: "POST" });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.detail || "Acción fallida");
+          await refreshStatus();
+        } catch (error) {
+          appendEvent({ timestamp: new Date().toISOString(), kind: "error", message: error.message });
+          await refreshStatus();
+        } finally {
+          button.disabled = false;
+          button.textContent = previousText;
+          button.classList.remove("busy");
+        }
+      });
+    });
+
+    const eventSource = new EventSource("/api/stream-logs");
+    eventSource.addEventListener("log", (event) => {
+      try { appendEvent(JSON.parse(event.data)); } catch (_) { /* Ignora solo un evento SSE malformado. */ }
+    });
+    eventSource.onopen = () => { document.getElementById("stream-status").textContent = "SSE: conectado"; };
+    eventSource.onerror = () => { document.getElementById("stream-status").textContent = "SSE: reconectando"; };
+
+    refreshStatus();
+    setInterval(refreshStatus, 3000);
+  </script>
+</body>
+</html>
