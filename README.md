@@ -55,15 +55,3 @@ en `http://127.0.0.1:8000`. Usa Ctrl+C para apagar y liberar los recursos.
 El control de servicios utiliza scripts `.bat` de XAMPP configurados por defecto
 en `C:\xampp`; se pueden cambiar con `XAMPP_APACHE_START`, `XAMPP_APACHE_STOP`,
 `XAMPP_MYSQL_START` y `XAMPP_MYSQL_STOP`.
-
-## Preparación del primer commit
-
-```powershell
-python setup_first_commit.py
-git init
-git add .
-git status --short
-```
-
-Antes del commit, confirma que `.env` y los entornos virtuales no aparecen en
-`git status` y que el ejemplo no contiene credenciales reales.
